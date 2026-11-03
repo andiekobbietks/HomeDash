@@ -1,0 +1,7 @@
+# Firmware dumps and device backups: large, proprietary, may contain device secrets
+firmware/
+backups/
+*.img
+*.bin
+*.ab
+*.apk
