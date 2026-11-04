@@ -4,9 +4,48 @@ A cheap Android photo frame turned into a wall display for the family dashboard 
 
 ## The device
 
-- **Humblestead 10.1" Digital Picture Frame** ([Amazon](https://www.amazon.co.uk/dp/B0GGB7LWX8)), 1280×800 IPS touchscreen, 32GB, WiFi, ships with the "AiMOR" photo-sharing app.
-- The listing gives no chipset or Android version. It is probably a Rockchip or Allwinner board on old Android with no security updates.
+- **Humblestead 10.1" Digital Picture Frame** ([Amazon](https://www.amazon.co.uk/dp/B0GGB7LWX8)), 1280×800 IPS touchscreen, WiFi, ships with the "AiMOR" photo-sharing app.
 - **Treat it as untrusted for its whole life**, even after cleaning.
+
+### Confirmed on our unit (2026-11-04, over ADB, read-only)
+
+| | |
+|---|---|
+| Model | PF1007 (About page). Reports itself as `AEEZO`, board `astar_m86_8723cs` |
+| Chip | Allwinner A33 (platform `astar`) |
+| Android | **6.0.1**, security patch **2016-07-05** |
+| Firmware | `astar_m86_8723cs-eng 6.0.1 MOB30R 20260529 test-keys` |
+| Build | `eng` build with test keys, `ro.secure=0`, `ro.debuggable=1`, so **ADB runs as root** |
+| USB | One USB-C port only, for both power and data. Presents as `1f3a:1002`: mass storage plus ADB. No keyboard and no network interface |
+| Camera | None (0 camera devices) |
+| The hole in the bezel | LTR-C216R ambient **light sensor** (auto-brightness), harmless |
+| Microphone | Probably none. The codec has a capture channel, but most do whether a mic is fitted or not. Community report PR #204 found no mic on this model |
+| Treble / GSI | Not possible. Android 6 predates Treble |
+
+A community project documents this exact model, PF1007L on Allwinner A33: [wesbos/photo-frame-dashboard, PF1007L start-here guide](https://github.com/wesbos/photo-frame-dashboard/blob/main/docs/pf1007l-start-here.md). Our firmware `20260529` matches its report that root ADB works out of the box ([issue #8](https://github.com/wesbos/photo-frame-dashboard/issues/8)).
+
+### Connecting it to the laptop
+
+- **USB-C to USB-C does not work, even with a good cable**: no power and no data. The frame lacks the USB-C resistors that tell the laptop to turn on power.
+- **What works:** laptop USB-C port → **USB-C to USB-A adapter** → **USB-A to USB-C data cable** → frame. The laptop then powers the frame and carries ADB over the same cable. The cable is effectively the power switch.
+- The first A-to-C cable tried was power-only: the frame powered on but the laptop saw no USB device at all. Use a cable known to carry data, e.g. one used for transferring files from a phone.
+- At power-on the frame briefly appears as `1f3a:efe8` (Allwinner FEL boot mode) for about 2 seconds, then reappears as `1f3a:1002` with ADB once Android has booted (about 30 seconds). This is normal.
+- Avoid hubs powered by the laptop. The guide reports dropouts with them.
+
+### Factory test app
+
+About → tap **Model** 7 times → **Open test app** → password `YHK88888888` → tap **IS CLOSED** so it reads **is open**. On our unit this was set before ADB was confirmed, so we don't know whether our firmware needed it. Setting it back to **IS CLOSED** turns that ADB access off.
+
+### Security findings
+
+- **AiMOR has a vendor remote root shell.** The stock app connects to a vendor server that can send root commands (outbound TCP 7806). It also runs a paired file service on TCP 8086. **The frame must not join any network until AiMOR is disabled and nothing connects on 7806.**
+- **`/system/xbin/su` is setuid root (`-rwsr-sr-x`) with no prompt**, so any app can become root. Remove it or take away its setuid bit before the frame goes online, and install nothing untrusted.
+- **AiMOR is also the launcher** (`/system/priv-app/launcher_aimor`). Install the kiosk app *before* disabling it, or the frame boots to nothing.
+- Vendor packages to disable: `com.efercro.os.aimor` (AiMOR launcher), `com.yhk.qeota` (vendor over-the-air updates), `com.DeviceTest` (factory test app).
+- Unknown system app: `com.android.gl2jni` at `/system/priv-app/tomas/tomas.apk`. That package name is normally an OpenGL sample app. Inspect it before deciding.
+- The system WebView is as old as the OS. The kiosk needs a browser that still supports Android 6.
+- During an AiMOR factory reset, stock recovery runs root ADB for about 13–20 seconds (from the guide).
+- `vuid_cert.txt` is a device credential. Keep it, serial numbers and MAC addresses out of this repo.
 
 ## Threat model
 
@@ -40,9 +79,8 @@ A cheap Android photo frame turned into a wall display for the family dashboard 
 
 ### 2. Clean it as far as the device allows
 
-- **Preferred: Generic System Image (GSI).** Needs Treble support and an unlockable bootloader. It replaces the system partition with a standard Android build. The vendor partition (drivers, firmware) stays the manufacturer's code, so the result is "much cleaner", not "verified clean".
-- **Fallback: debloat over ADB.** Without rooting, remove the vendor apps with `adb shell pm uninstall --user 0 <package>`.
-- No LineageOS build is expected to exist for this board.
+- **A GSI is ruled out** (Android 6, no Treble), and no LineageOS build exists for this board. So the route is **debloat over root ADB**.
+- Order matters: install the browser and kiosk launcher → disable `com.efercro.os.aimor`, `com.yhk.qeota` and `com.DeviceTest` → deal with `su` → reboot → confirm nothing listens on 8086 and nothing connects on 7806.
 - Install a current Chromium-based browser or WebView. The stock Android System WebView is likely years old, and the browser is the frame's main exposure.
 - Install a kiosk app locked to the planner domain.
 - Do not sign into a Google account or the AiMOR app on the frame. Upload no photos to vendor clouds.
@@ -95,9 +133,11 @@ The dashboard is the FamilyPlanner site on Azure Static Web Apps, behind a Micro
 
 ## Status
 
-- [x] Frame purchased
-- [ ] Step 1: inspect offline (`getprop`), back up firmware
-- [ ] Step 2: GSI or debloat, browser, kiosk app
+- [x] Frame purchased and arrived
+- [ ] ISP guest WiFi enabled and isolation tested with a phone
+- [x] Step 1: inspected offline over ADB (see "Confirmed on our unit")
+- [ ] Step 1: full firmware backup to `backups/`
+- [ ] Step 2: debloat, browser, kiosk app, `su` fixed
 - [ ] Display Microsoft account created and invited
 - [ ] `display` role and `/display` page in FamilyPlanner
 - [ ] Step 3: on ISP guest WiFi, port scan clean
