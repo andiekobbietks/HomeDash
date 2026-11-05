@@ -3,7 +3,6 @@ package com.homedash.kiosk;
 import java.net.URI;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 
 /**
@@ -56,7 +55,7 @@ public final class AutoSignIn {
 
         String next = safeNext(u.getRawQuery());
         return "https://" + plannerHost + "/.auth/login/aad?post_login_redirect_uri="
-                + URLEncoder.encode(next, StandardCharsets.UTF_8);
+                + encode(next);
     }
 
     /** The app's ?next= value if it is a plain local path, otherwise the wall page. */
@@ -66,7 +65,8 @@ public final class AutoSignIn {
             if (!pair.startsWith("next=")) continue;
             String next;
             try {
-                next = URLDecoder.decode(pair.substring(5), StandardCharsets.UTF_8);
+                // The (String, String) forms: the Charset overloads need Android 13, the frame runs 6.
+                next = URLDecoder.decode(pair.substring(5), "UTF-8");
             } catch (Exception e) {
                 return DEFAULT_NEXT;
             }
@@ -78,5 +78,13 @@ public final class AutoSignIn {
             return DEFAULT_NEXT;
         }
         return DEFAULT_NEXT;
+    }
+
+    private static String encode(String s) {
+        try {
+            return URLEncoder.encode(s, "UTF-8");
+        } catch (java.io.UnsupportedEncodingException e) {
+            throw new AssertionError(e);   // UTF-8 is always supported
+        }
     }
 }

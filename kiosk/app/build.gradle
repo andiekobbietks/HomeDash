@@ -18,9 +18,20 @@ android {
 
         buildConfigField "String", "PLANNER_HOST", "\"${plannerHost}\""
         buildConfigField "String", "START_URL", "\"https://${plannerHost}/display\""
+        // The frame boots at 1970; the browser waits until the clock is at least this (ClockGate).
+        buildConfigField "long", "NOT_BEFORE_MS", "${System.currentTimeMillis() - 86_400_000L}L"
     }
 
     buildFeatures { buildConfig = true }
+
+    lint {
+        // Part of the test command: catches APIs newer than the frame's Android 6,
+        // which unit tests on the laptop's Java can't (URLDecoder crash, 2026-11-05).
+        abortOnError = true
+        warningsAsErrors = false
+        // GeckoView's bundled ExoPlayer posts notifications; the permission only exists on Android 13+.
+        disable += "NotificationPermission"
+    }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

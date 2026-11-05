@@ -40,6 +40,9 @@ public class KioskActivity extends Activity {
     private static final float LIGHT_ABOVE_LUX = 15f;
     private static final long DIM_CHECK_MS = 5_000;
 
+    private static final long CLOCK_POLL_MS = 2_000;
+    private final ClockGate clockGate = new ClockGate(BuildConfig.NOT_BEFORE_MS);
+
     private static GeckoRuntime runtime;   // one per process, as GeckoView requires
 
     private DimPolicy dimPolicy;
@@ -90,6 +93,48 @@ public class KioskActivity extends Activity {
         super.onCreate(savedInstanceState);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
+        dimPolicy = new DimPolicy(IDLE_DIM_MS, DARK_BELOW_LUX, LIGHT_ABOVE_LUX, SystemClock.elapsedRealtime());
+        sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
+        Sensor light = sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT);
+        if (light != null) {
+            sensorManager.registerListener(lightListener, light, SensorManager.SENSOR_DELAY_NORMAL);
+        } else {
+            Log.w(TAG, "No light sensor; dimming on touch timeout only");
+        }
+        handler.postDelayed(dimCheck, DIM_CHECK_MS);
+
+        if (clockGate.isTrustworthy(System.currentTimeMillis())) {
+            startBrowser();
+        } else {
+            showWaitingForTime();
+        }
+    }
+
+    /** Shown until network time arrives; see ClockGate for why the browser must wait. */
+    private void showWaitingForTime() {
+        Log.i(TAG, "Clock not set yet (" + System.currentTimeMillis() + "), waiting before starting the browser");
+        android.widget.TextView waiting = new android.widget.TextView(this);
+        waiting.setText("Waiting for the time…");
+        waiting.setTextColor(0xFF8C8C8C);
+        waiting.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, 40);
+        waiting.setBackgroundColor(0xFF000000);
+        waiting.setGravity(android.view.Gravity.CENTER);
+        setContentView(waiting);
+        handler.postDelayed(waitForClock, CLOCK_POLL_MS);
+    }
+
+    private final Runnable waitForClock = new Runnable() {
+        @Override public void run() {
+            if (clockGate.isTrustworthy(System.currentTimeMillis())) {
+                Log.i(TAG, "Clock is set, starting the browser");
+                startBrowser();
+            } else {
+                handler.postDelayed(this, CLOCK_POLL_MS);
+            }
+        }
+    };
+
+    private void startBrowser() {
         view = new GeckoView(this);
         setContentView(view);
 
@@ -108,16 +153,6 @@ public class KioskActivity extends Activity {
 
         openSession();
         handler.postDelayed(routineReload, ROUTINE_RELOAD_MS);
-
-        dimPolicy = new DimPolicy(IDLE_DIM_MS, DARK_BELOW_LUX, LIGHT_ABOVE_LUX, SystemClock.elapsedRealtime());
-        sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
-        Sensor light = sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT);
-        if (light != null) {
-            sensorManager.registerListener(lightListener, light, SensorManager.SENSOR_DELAY_NORMAL);
-        } else {
-            Log.w(TAG, "No light sensor; dimming on touch timeout only");
-        }
-        handler.postDelayed(dimCheck, DIM_CHECK_MS);
     }
 
     private void updateDimming() {
