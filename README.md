@@ -157,11 +157,11 @@ For reference, the full VLAN design this approximates:
 
 ## FamilyPlanner integration
 
-The dashboard is the FamilyPlanner site on Azure Static Web Apps, behind a Microsoft sign-in plus an active member record. Its roles are `admin` and `member`, and a member can read and change everything, including chat (Anthropic spend, reads data about the children) and the members list. A frame signed in as a normal member holds full family access.
+The dashboard is the FamilyPlanner site on Azure Static Web Apps, behind a Microsoft sign-in plus an active member record. A normal `member` can read and change everything, including chat (Anthropic spend, reads data about the children) and the members list, so the frame uses its own read-only `display` role instead.
 
-- **Dedicated identity:** a Microsoft account used only by the display (e.g. `kitchen-display@example.com`), with a unique password and MFA codes on a phone. Invite it as a member, never an admin. Removing that member revokes the frame's access on its next request (FamilyPlanner S17) without affecting anyone else.
-- **Planned `display` role:** GET-only access to dashboard data, with no writes, chat, export or members page. `req.md` §4 plans for adding a role in one place (`getCaller`). Add it with regression tests showing a display caller can't write, chat, export or list members.
-- **Planned `/display` page:** a wall-friendly layout that refreshes itself.
+- **Dedicated identity:** `frame-account@example.com`, a Microsoft account used only by the frame, with a unique password and two-step verification codes on a phone. Nothing is configured in Azure: SWA's built-in Microsoft sign-in accepts any personal account, and the FamilyPlanner member record is what grants access. Invite it on the Members page with the role **Display**, never member or admin. Removing that member revokes the frame's access on its next request (FamilyPlanner S17) without affecting anyone else.
+- **`display` role (done, FamilyPlanner `cc5411a`):** the API refuses it on every route except eight GETs the wall page needs (calendar, tasks, meal plan, chores, weather, settings, people, me). It has no writes, chat, shopping lists, recipes, export or members page. Only GET routes can be opened to it, and a new route stays closed to it by default. Regression tests are in `api/test/display.test.ts`. It doesn't appear in people pickers and can't be given a chore.
+- **`/display` page (done):** clock, weather, today (events, meals, tasks due), the next six days, and this week's chores. It has no links or controls, refreshes every five minutes and reloads nightly to pick up deploys. The display account is sent there from any address, so the kiosk's `START_URL` of `/` works as it is.
 - **Open question:** how long an SWA sign-in session lasts before it bounces to the Microsoft login. Test early. It decides whether the setup is livable.
 - Alternative considered and not chosen: a home-server proxy holding an integration token. It needs a data-reading token, which FamilyPlanner S31 currently forbids, and is harder to revoke than a single member.
 
@@ -173,7 +173,7 @@ The dashboard is the FamilyPlanner site on Azure Static Web Apps, behind a Micro
 - [x] Step 1: full firmware backup, verified (stored outside Dropbox and git; see the backup notes below)
 - [x] Step 2: kiosk app, vendor apps disabled or removed, `su` fixed, time zone, splash replaced
 - [ ] Sign-in test: needs the frame online (after step 3) and the display Microsoft account
-- [ ] Display Microsoft account created and invited
-- [ ] `display` role and `/display` page in FamilyPlanner
+- [ ] Display Microsoft account (`frame-account@example.com`) secured and invited with the **Display** role
+- [x] `display` role and `/display` page in FamilyPlanner (`cc5411a`)
 - [ ] Step 3: on ISP guest WiFi, port scan clean
 - [ ] Step 4 (optional): GL.iNet router, allowlist, traffic check
