@@ -1,0 +1,8 @@
+plugins {
+    id "com.android.application" version "9.0.1" apply false
+}
+
+// Keep build output out of the Dropbox folder this repo lives in.
+allprojects {
+    layout.buildDirectory = new File(System.getProperty("user.home"), ".cache/homedash-kiosk-build/${project.name}")
+}

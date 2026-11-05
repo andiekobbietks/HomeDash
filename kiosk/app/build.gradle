@@ -1,0 +1,35 @@
+plugins {
+    id "com.android.application"
+}
+
+def plannerHost = "your-app-name.4.azurestaticapps.net"
+
+android {
+    namespace = "com.homedash.kiosk"
+    compileSdk = 36
+
+    defaultConfig {
+        applicationId = "com.homedash.kiosk"
+        minSdk = 23            // the frame runs Android 6.0.1
+        targetSdk = 35
+        versionCode = 1
+        versionName = "0.1"
+        ndk { abiFilters "armeabi-v7a" }   // Allwinner A33, 32-bit ARM
+
+        buildConfigField "String", "PLANNER_HOST", "\"${plannerHost}\""
+        buildConfigField "String", "START_URL", "\"https://${plannerHost}/\""
+    }
+
+    buildFeatures { buildConfig = true }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    // GeckoView 143 = Firefox 143.0.4, the last engine release for Android 5-7.
+    testImplementation "junit:junit:4.13.2"
+    implementation "org.mozilla.geckoview:geckoview-armeabi-v7a:143.0.20251003115653"
+}
