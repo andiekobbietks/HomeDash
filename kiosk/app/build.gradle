@@ -17,7 +17,7 @@ android {
         ndk { abiFilters "armeabi-v7a" }   // Allwinner A33, 32-bit ARM
 
         buildConfigField "String", "PLANNER_HOST", "\"${plannerHost}\""
-        buildConfigField "String", "START_URL", "\"https://${plannerHost}/\""
+        buildConfigField "String", "START_URL", "\"https://${plannerHost}/display\""
     }
 
     buildFeatures { buildConfig = true }

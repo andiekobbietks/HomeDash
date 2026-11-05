@@ -67,6 +67,7 @@ public class KioskActivity extends Activity {
     };
 
     private final Allowlist allowlist = new Allowlist(BuildConfig.PLANNER_HOST);
+    private final AutoSignIn autoSignIn = new AutoSignIn(BuildConfig.PLANNER_HOST, 2 * 60_000L);
     private final Handler handler = new Handler(Looper.getMainLooper());
     private GeckoView view;
     private GeckoSession session;
@@ -162,6 +163,18 @@ public class KioskActivity extends Activity {
                 if (allowlist.allows(request.uri)) return GeckoResult.allow();
                 Log.w(TAG, "Blocked navigation to " + request.uri);
                 return GeckoResult.deny();
+            }
+
+            @Override
+            public void onLocationChange(GeckoSession s, String url,
+                                         java.util.List<GeckoSession.PermissionDelegate.ContentPermission> perms,
+                                         Boolean hasUserGesture) {
+                // The planner moves to /login inside the page (no new load), so watch here.
+                String signIn = autoSignIn.redirectFor(url, SystemClock.elapsedRealtime());
+                if (signIn != null) {
+                    Log.i(TAG, "On the planner's sign-in page; signing in automatically");
+                    s.loadUri(signIn);
+                }
             }
 
             @Override
