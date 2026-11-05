@@ -75,7 +75,14 @@ About → tap **Model** 7 times → **Open test app** → password `YHK88888888`
   adb shell pm list packages
   ```
 - These answer: chipset, Android version, Treble support (needed for a GSI), whether the bootloader looks unlockable, and which vendor packages are installed.
-- **Back up the stock firmware before changing anything** (Rockchip: `rkdeveloptool`; Allwinner: PhoenixSuit or `dd` with root). Keep backups out of git (see `.gitignore`).
+- **Back up the stock firmware before changing anything.**
+
+#### Backup notes (done 2026-11-04/05)
+
+- Stored at `~/photoframe-backups/2026-11-04/` on the laptop, **deliberately outside this Dropbox folder and outside git**. The `private` partition probably holds the device credential. Copy the backup to an external drive. It has its own README with the partition layout.
+- Contents: all named partitions plus both eMMC boot areas (each sha1-verified), and the full 15.76 GB eMMC as 59 verified 256 MiB chunks.
+- **The frame's default `dd` (toolbox) wraps at 2 GiB because it uses 32-bit offsets.** Use `toybox dd` for anything past 2 GiB. The first full-disk attempt silently produced wrapped data because of this, which is why each chunk is now also size-checked.
+- The USB link drops occasionally on long transfers. The chunked script retries automatically.
 
 ### 2. Clean it as far as the device allows
 
@@ -136,7 +143,7 @@ The dashboard is the FamilyPlanner site on Azure Static Web Apps, behind a Micro
 - [x] Frame purchased and arrived
 - [ ] ISP guest WiFi enabled and isolation tested with a phone
 - [x] Step 1: inspected offline over ADB (see "Confirmed on our unit")
-- [ ] Step 1: full firmware backup to `backups/`
+- [x] Step 1: full firmware backup, verified (stored outside Dropbox and git; see the backup notes below)
 - [ ] Step 2: debloat, browser, kiosk app, `su` fixed
 - [ ] Display Microsoft account created and invited
 - [ ] `display` role and `/display` page in FamilyPlanner
