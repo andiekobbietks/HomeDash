@@ -79,7 +79,7 @@ About → tap **Model** 7 times → **Open test app** → password `YHK88888888`
 
 #### Backup notes (done 2026-11-04/05)
 
-- Stored at `~/photoframe-backups/2026-11-04/` on the laptop, **deliberately outside this Dropbox folder and outside git**. The `private` partition probably holds the device credential. Copy the backup to an external drive. It has its own README with the partition layout.
+- Stored at `~/photoframe-backups/2026-11-04/` on the laptop, **deliberately outside this Dropbox folder and outside git**. The `bootloader` partition (a FAT filesystem) holds the device credentials `vuid_cert.txt`, `vuid.txt` and `device_uid.txt`. Copy the backup to an external drive. It has its own README with the partition layout.
 - Contents: all named partitions plus both eMMC boot areas (each sha1-verified), and the full 15.76 GB eMMC as 59 verified 256 MiB chunks.
 - **The frame's default `dd` (toolbox) wraps at 2 GiB because it uses 32-bit offsets.** Use `toybox dd` for anything past 2 GiB. The first full-disk attempt silently produced wrapped data because of this, which is why each chunk is now also size-checked.
 - The USB link drops occasionally on long transfers. The chunked script retries automatically.
@@ -87,10 +87,37 @@ About → tap **Model** 7 times → **Open test app** → password `YHK88888888`
 ### 2. Clean it as far as the device allows
 
 - **A GSI is ruled out** (Android 6, no Treble), and no LineageOS build exists for this board. So the route is **debloat over root ADB**.
-- Order matters: install the browser and kiosk launcher → disable `com.efercro.os.aimor`, `com.yhk.qeota` and `com.DeviceTest` → deal with `su` → reboot → confirm nothing listens on 8086 and nothing connects on 7806.
-- Install a current Chromium-based browser or WebView. The stock Android System WebView is likely years old, and the browser is the frame's main exposure.
-- Install a kiosk app locked to the planner domain.
 - Do not sign into a Google account or the AiMOR app on the frame. Upload no photos to vendor clouds.
+
+#### Done 2026-11-05, verified across reboots
+
+| Change | How | To undo |
+|---|---|---|
+| **Kiosk app** (`kiosk/`, `com.homedash.kiosk`) is the home screen | `adb install` | `adb uninstall com.homedash.kiosk`, after re-enabling AiMOR |
+| AiMOR (launcher and remote root shell), vendor updates, "tomas" factory test app | `pm disable com.efercro.os.aimor com.yhk.qeota com.android.gl2jni` | `pm enable <pkg>` |
+| `com.DeviceTest` (factory test app, runs as the system user) | Moved `/system/priv-app/DeviceTest` to `/system/DeviceTest.disabled`. `pm disable` doesn't stick: something re-enables it on every boot | Move it back and reboot |
+| `/system/xbin/su` no longer gives any app root | `chmod 0755` (was `06755`). ADB has root without it | `chmod 06755` |
+| Time zone | `persist.sys.timezone=Europe/London`, `auto_time_zone=0` (was America/New_York) | |
+| Boot splash "LOVE IS SHARING" → "HomeDash" | `splash/make_splash.py` builds all three files: U-Boot `bootlogo.bmp` (mount `/dev/block/by-name/bootloader` as vfat, overwrite in place), `/system/media/initlogo.rle` and `/system/media/bootanimation.zip` | Restore from the backup (`partitions/bootloader.img` and `system.img`) |
+
+Result: the frame boots into the kiosk, AiMOR and the other vendor apps don't run, nothing listens on 8086 and nothing connects on 7806, and root ADB over USB still works (it comes from `persist.sys.usb.config` and `ro.adb.secure=0`, not from the test app).
+
+#### Kiosk app
+
+- **Engine:** GeckoView 143 (= Firefox 143.0.4, the last release for Android 5–7). Chrome stopped at 106 for Android 6, and the system WebView is version 44 (2015), too old for the planner and for Microsoft sign-in.
+- Only navigates to the planner host and Microsoft sign-in (`Allowlist.java`, unit-tested). No pop-ups or new tabs, and Back stays inside the kiosk.
+- Keeps the sign-in cookie across restarts. Full screen, screen kept on. Shows its own "Can't reach the planner" page and retries every 30 s, reloads every 6 h, and reopens the session if the engine crashes.
+- Safe Browsing, remote debugging and `about:config` are off.
+- Build: `cd kiosk && JAVA_HOME=/opt/android-studio/jbr ./gradlew testDebugUnitTest assembleDebug`. Output goes to `~/.cache/homedash-kiosk-build/` to keep it out of Dropbox. Install with `adb -d install -r ~/.cache/homedash-kiosk-build/app/outputs/apk/debug/app-debug.apk`.
+- Signed with the Android Studio debug key (`~/.android/debug.keystore`). Updates must use the same key, so back it up.
+- **The engine never gets security updates again.** That makes the network allowlist in step 4 more valuable.
+
+#### Gotchas
+
+- `pm disable` is written to `package-restrictions.xml` a few seconds later. Wait before rebooting, or the change is lost.
+- The frame's clock starts in 1970 with no network. HTTPS fails until NTP sets it (`auto_time=1`), so allow NTP (UDP 123) on any firewall.
+- `adb shell reboot` works on this unit (about 40 s to boot).
+- The bootloader partition's FAT header claims more sectors than the 32 MB partition has (`fsck.fat` reports "Failed to read sector 262143"). This is a factory quirk, already present in the original.
 
 ### 3. Put it on the ISP guest WiFi (do not skip)
 
@@ -144,7 +171,8 @@ The dashboard is the FamilyPlanner site on Azure Static Web Apps, behind a Micro
 - [ ] ISP guest WiFi enabled and isolation tested with a phone
 - [x] Step 1: inspected offline over ADB (see "Confirmed on our unit")
 - [x] Step 1: full firmware backup, verified (stored outside Dropbox and git; see the backup notes below)
-- [ ] Step 2: debloat, browser, kiosk app, `su` fixed
+- [x] Step 2: kiosk app, vendor apps disabled or removed, `su` fixed, time zone, splash replaced
+- [ ] Sign-in test: needs the frame online (after step 3) and the display Microsoft account
 - [ ] Display Microsoft account created and invited
 - [ ] `display` role and `/display` page in FamilyPlanner
 - [ ] Step 3: on ISP guest WiFi, port scan clean
