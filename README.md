@@ -117,13 +117,14 @@ Result: the frame boots into the kiosk, AiMOR and the other vendor apps don't ru
 - `pm disable` is written to `package-restrictions.xml` a few seconds later. Wait before rebooting, or the change is lost.
 - The frame's clock starts in 1970 with no network. HTTPS fails until NTP sets it (`auto_time=1`), so allow NTP (UDP 123) on any firewall.
 - `adb shell reboot` works on this unit (about 40 s to boot).
-- **Installing the 148 MB kiosk over laptop USB power fails.** The frame browns out while unpacking the app, then fails to reconnect over and over (`device not accepting address … error -71`). Android installs all-or-nothing, so the old version stays. Use a powered USB hub, or ADB over the guest WiFi.
+- **Installing over laptop USB works if the load is reduced first:** push the APK, then `settings put system screen_brightness_mode 0; settings put system screen_brightness 10; setprop dalvik.vm.dex2oat-threads 1`, then `pm install -r /data/local/tmp/kiosk.apk`, then restore the brightness (was 140, mode 1) and threads (3). Done this way on 2026-11-05 with no dropouts.
+- **Installing the 148 MB kiosk over laptop USB power at full load fails.** The frame browns out while unpacking the app, then fails to reconnect over and over (`device not accepting address … error -71`). Android installs all-or-nothing, so the old version stays. Use a powered USB hub, or ADB over the guest WiFi.
 - **Don't switch WiFi off with `svc wifi disable`.** It's saved, so the frame stays offline after a reboot, and the kiosk has no way to turn it back on (swiping down doesn't open quick settings). Fix over USB: `settings put global wifi_on 1; svc wifi enable`, run after `sys.boot_completed=1`, because ADB comes up before Android's services.
 - **A 401 on `identity.4.azurestaticapps.net/.auth/login/done`** means a sign-in was finished minutes after it started and its one-time code had expired. Start again from the planner (restart the kiosk). After choosing "Stay signed in", a fresh sign-in goes through Microsoft silently in about 7 s.
 - After a sign-in or "Stay signed in", wait a minute or two before cutting the power. Gecko saves cookies in the background, and a power cut right after sign-in lost them once.
 - **Run it from the wall adapter once it's online.** On laptop USB power (default USB current through the C-to-A adapter) it lost power and cold-rebooted as soon as WiFi was on and Microsoft sign-in was rendering. ADB over USB is fine for offline maintenance.
 - **Sign-in after a restart:** the Static Web Apps sign-in cookie is a session cookie, so it's lost whenever the kiosk restarts. The planner's service worker then serves the app from cache and shows its own "Sign in with Microsoft" page (`/login`). The kiosk presses it automatically (`AutoSignIn.java`, at most once every 2 minutes so it can't loop). Microsoft then completes silently **if "Stay signed in?" was answered Yes** when the display account last signed in on the frame.
-- **Dimming** (`DimPolicy.java`): no motion sensor, so activity means a touch or the room lights coming on. It dims to 5% after 5 idle minutes, or at once when the room goes dark (below 5 lux, light again above 15 lux; these thresholds need calibrating). A touch on a dimmed screen only wakes it.
+- **Dimming** (`DimPolicy.java`): no motion sensor, so activity means a touch or the room lights coming on. It dims to 5% after 5 idle minutes, or at once when the room goes dark (below 5 lux, light again above 15 lux). Calibrated 2026-11-05: main light on about 60 lux, low light about 10 lux (stays dim, which is wanted), lights off 2–4 lux. The sensor also picks up some of the screen's own glow, so readings drop a little when it dims. A touch on a dimmed screen only wakes it.
 - Static Web Apps sign-in passes through `identity.<region>.azurestaticapps.net` before Microsoft. Blocking it gives a blank white page (fixed, with a regression test).
 - To join WiFi: `adb shell am start -a android.settings.WIFI_SETTINGS`, choose the network on the frame, then `adb shell input keyevent KEYCODE_HOME`. The password is typed on the frame and never passes through the laptop.
 - The bootloader partition's FAT header claims more sectors than the 32 MB partition has (`fsck.fat` reports "Failed to read sector 262143"). This is a factory quirk, already present in the original.
@@ -199,7 +200,8 @@ The dashboard is the FamilyPlanner site on Azure Static Web Apps, behind a Micro
 - [x] Step 1: full firmware backup, verified (stored outside Dropbox and git; see the backup notes below)
 - [x] Step 2: kiosk app, vendor apps disabled or removed, `su` fixed, time zone, splash replaced
 - [x] Signed in on the frame as the display account, dashboard showing (2026-11-05, on wall power)
-- [ ] Check the sign-in survives a power cycle and lasts for days (SWA session lifetime)
+- [x] Kiosk update installed: dimming (calibrated) and automatic sign-in after restarts
+- [ ] Check the sign-in survives a wall-power cycle with the new kiosk, and lasts for days
 - [ ] Display Microsoft account (`frame-account@example.com`) secured and invited with the **Display** role
 - [x] `display` role and `/display` page in FamilyPlanner (`cc5411a`)
 - [x] Step 3: on ISP guest WiFi, nothing listening apart from ADB on localhost
