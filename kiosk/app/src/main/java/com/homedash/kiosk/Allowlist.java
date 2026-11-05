@@ -25,10 +25,22 @@ public final class Allowlist {
         "msftauth.net",
     };
 
+    private static final String SWA_SUFFIX = ".azurestaticapps.net";
+
     private final String plannerHost;
+    /**
+     * Static Web Apps' shared sign-in host for the planner's region, which
+     * /.auth/login/aad passes through before Microsoft: for
+     * "name.4.azurestaticapps.net" it is "identity.4.azurestaticapps.net".
+     */
+    private final String identityHost;
 
     public Allowlist(String plannerHost) {
         this.plannerHost = plannerHost.toLowerCase(Locale.ROOT);
+        int dot = this.plannerHost.indexOf('.');
+        this.identityHost = (this.plannerHost.endsWith(SWA_SUFFIX) && dot > 0)
+                ? "identity" + this.plannerHost.substring(dot)
+                : null;
     }
 
     public boolean allows(String uri) {
@@ -52,6 +64,8 @@ public final class Allowlist {
         if (host.endsWith(".")) host = host.substring(0, host.length() - 1);
 
         if (host.equals(plannerHost)) return true;
+        if (identityHost != null
+                && (host.equals(identityHost) || host.equals("identity" + SWA_SUFFIX))) return true;
         for (String suffix : SIGN_IN_SUFFIXES) {
             if (host.equals(suffix) || host.endsWith("." + suffix)) return true;
         }

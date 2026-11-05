@@ -23,6 +23,15 @@ public class AllowlistTest {
         assertTrue(allowlist.allows("about:blank"));
     }
 
+    // Regression: Static Web Apps sends /.auth/login/aad through its shared identity host
+    // for the app's region before Microsoft sign-in. Blocking it left a blank white page.
+    @Test public void allowsStaticWebAppsIdentityHostForThePlannersRegion() {
+        assertTrue(allowlist.allows("https://identity.4.azurestaticapps.net/.redirect/aad?hostName=your-app-name.4.azurestaticapps.net&staticWebAppsAuthNonce=abc"));
+        assertTrue(allowlist.allows("https://identity.azurestaticapps.net/.redirect/aad"));
+        assertFalse(allowlist.allows("https://identity.5.azurestaticapps.net/.redirect/aad"));
+        assertFalse(allowlist.allows("https://identity.4.azurestaticapps.net.evil.example/"));
+    }
+
     @Test public void blocksOtherSites() {
         assertFalse(allowlist.allows("https://www.google.com/"));
         assertFalse(allowlist.allows("https://other-app.4.azurestaticapps.net/"));

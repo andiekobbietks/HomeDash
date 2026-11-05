@@ -105,7 +105,7 @@ Result: the frame boots into the kiosk, AiMOR and the other vendor apps don't ru
 #### Kiosk app
 
 - **Engine:** GeckoView 143 (= Firefox 143.0.4, the last release for Android 5–7). Chrome stopped at 106 for Android 6, and the system WebView is version 44 (2015), too old for the planner and for Microsoft sign-in.
-- Only navigates to the planner host and Microsoft sign-in (`Allowlist.java`, unit-tested). No pop-ups or new tabs, and Back stays inside the kiosk.
+- Only navigates to the planner host, Static Web Apps' shared sign-in host for the planner's region (`identity.4.azurestaticapps.net`, derived from the planner host) and Microsoft sign-in (`Allowlist.java`, unit-tested). No pop-ups or new tabs, and Back stays inside the kiosk.
 - Keeps the sign-in cookie across restarts. Full screen, screen kept on. Shows its own "Can't reach the planner" page and retries every 30 s, reloads every 6 h, and reopens the session if the engine crashes.
 - Safe Browsing, remote debugging and `about:config` are off.
 - Build: `cd kiosk && JAVA_HOME=/opt/android-studio/jbr ./gradlew testDebugUnitTest assembleDebug`. Output goes to `~/.cache/homedash-kiosk-build/` to keep it out of Dropbox. Install with `adb -d install -r ~/.cache/homedash-kiosk-build/app/outputs/apk/debug/app-debug.apk`.
@@ -117,6 +117,9 @@ Result: the frame boots into the kiosk, AiMOR and the other vendor apps don't ru
 - `pm disable` is written to `package-restrictions.xml` a few seconds later. Wait before rebooting, or the change is lost.
 - The frame's clock starts in 1970 with no network. HTTPS fails until NTP sets it (`auto_time=1`), so allow NTP (UDP 123) on any firewall.
 - `adb shell reboot` works on this unit (about 40 s to boot).
+- **Run it from the wall adapter once it's online.** On laptop USB power (default USB current through the C-to-A adapter) it lost power and cold-rebooted as soon as WiFi was on and Microsoft sign-in was rendering. ADB over USB is fine for offline maintenance.
+- Static Web Apps sign-in passes through `identity.<region>.azurestaticapps.net` before Microsoft. Blocking it gives a blank white page (fixed, with a regression test).
+- To join WiFi: `adb shell am start -a android.settings.WIFI_SETTINGS`, choose the network on the frame, then `adb shell input keyevent KEYCODE_HOME`. The password is typed on the frame and never passes through the laptop.
 - The bootloader partition's FAT header claims more sectors than the 32 MB partition has (`fsck.fat` reports "Failed to read sector 262143"). This is a factory quirk, already present in the original.
 
 ### 3. Put it on the ISP guest WiFi (do not skip)
@@ -124,6 +127,23 @@ Result: the frame boots into the kiosk, AiMOR and the other vendor apps don't ru
 - Router: **the ISP's WiFi hub**. Locked-down ISP firmware: no VLANs, firewall rules or DNS filtering. It does have guest WiFi.
 - The guest network keeps the frame away from the laptop and home devices. It cannot filter the frame's internet traffic.
 - A clean OS, the read-only `display` login and guest WiFi together leave low remaining risk.
+
+#### Done 2026-11-05
+
+- Guest SSID `Guest-WiFi`, subnet `192.168.5.0/24` (home is `192.168.1.0/24`). The guest network also gets its own public IPv6 /64, separate from home.
+- Isolation tested from the frame and the laptop, with controls:
+
+| Test | Result |
+|---|---|
+| Frame → laptop, IPv4 (ping and HTTP to a temporary listener) | Blocked |
+| Frame → home router `192.168.1.1` | Blocked |
+| Frame → laptop, IPv6 ping | Blocked (IPv6 ping from the frame to the internet works, so the test is valid) |
+| Laptop → frame, IPv4 and IPv6 ping | Blocked |
+| Frame → planner (control) | Reachable |
+
+- The frame's `nc` can't test an actual IPv6 connection, so IPv6 isolation rests on ICMP. The router clearly doesn't forward guest-to-home traffic.
+- After joining, the clock synced by NTP and nothing listened on or connected to 7806 or 8086.
+- Not done: turning off Android's captive-portal check (`settings put global captive_portal_detection_enabled 0`), which contacts Google on every connect.
 
 ### 4. Optional: GL.iNet travel router for verification and an enforced allowlist
 
@@ -168,12 +188,13 @@ The dashboard is the FamilyPlanner site on Azure Static Web Apps, behind a Micro
 ## Status
 
 - [x] Frame purchased and arrived
-- [ ] ISP guest WiFi enabled and isolation tested with a phone
+- [x] ISP guest WiFi (`Guest-WiFi`) enabled, isolation tested from the frame and laptop
 - [x] Step 1: inspected offline over ADB (see "Confirmed on our unit")
 - [x] Step 1: full firmware backup, verified (stored outside Dropbox and git; see the backup notes below)
 - [x] Step 2: kiosk app, vendor apps disabled or removed, `su` fixed, time zone, splash replaced
-- [ ] Sign-in test: needs the frame online (after step 3) and the display Microsoft account
+- [x] Signed in on the frame as the display account, dashboard showing (2026-11-05, on wall power)
+- [ ] Check the sign-in survives a power cycle and lasts for days (SWA session lifetime)
 - [ ] Display Microsoft account (`frame-account@example.com`) secured and invited with the **Display** role
 - [x] `display` role and `/display` page in FamilyPlanner (`cc5411a`)
-- [ ] Step 3: on ISP guest WiFi, port scan clean
+- [x] Step 3: on ISP guest WiFi, nothing listening apart from ADB on localhost
 - [ ] Step 4 (optional): GL.iNet router, allowlist, traffic check
