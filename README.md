@@ -206,7 +206,9 @@ The dashboard is the FamilyPlanner site on Azure Static Web Apps, behind a Micro
 - [x] Signed in on the frame as the display account, dashboard showing (2026-11-05, on wall power)
 - [x] Kiosk update installed: dimming (calibrated) and automatic sign-in after restarts
 - [x] Sign-in survives a power cut (clock gate), verified 2026-11-05
-- [ ] Microsoft "stay signed in" cookies not saved: a power-off longer than the 8 h Azure cookie needs a full sign-in
+- [x] ~~Microsoft "stay signed in" cookies not saved~~: replaced by the display key
+- [x] Paired with a FamilyPlanner display key (S34) on 2026-11-06. Cookie `__Host-DisplayKey` expires 2027-12-11 and renews daily. Power cut verified: waited for the time, then straight to the dashboard with no sign-in
+- [ ] Remove the `frame-account@example.com` member from FamilyPlanner (and the locked Microsoft account if you like)
 - [ ] Display Microsoft account (`frame-account@example.com`) secured and invited with the **Display** role
 - [x] `display` role and `/display` page in FamilyPlanner (`cc5411a`)
 - [x] Step 3: on ISP guest WiFi, nothing listening apart from ADB on localhost
