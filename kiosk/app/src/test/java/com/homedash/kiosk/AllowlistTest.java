@@ -15,21 +15,14 @@ public class AllowlistTest {
         assertTrue(allowlist.allows("https://YOUR-APP-NAME.4.azurestaticapps.net./display"));
     }
 
-    @Test public void allowsMicrosoftSignIn() {
-        assertTrue(allowlist.allows("https://login.microsoftonline.com/common/oauth2/v2.0/authorize?x=1"));
-        assertTrue(allowlist.allows("https://login.live.com/oauth20_authorize.srf"));
-        assertTrue(allowlist.allows("https://account.live.com/proofs/Verify"));
-        assertTrue(allowlist.allows("https://logincdn.msauth.net/x.js"));
+    // S34: the frame is paired with a display key, so it never needs Microsoft or the SWA identity host.
+    @Test public void blocksMicrosoftSignInNowTheFrameHasADisplayKey() {
+        assertFalse(allowlist.allows("https://login.microsoftonline.com/common/oauth2/v2.0/authorize?x=1"));
+        assertFalse(allowlist.allows("https://login.live.com/oauth20_authorize.srf"));
+        assertFalse(allowlist.allows("https://account.live.com/proofs/Verify"));
+        assertFalse(allowlist.allows("https://signup.live.com/signup"));
+        assertFalse(allowlist.allows("https://identity.4.azurestaticapps.net/.redirect/aad"));
         assertTrue(allowlist.allows("about:blank"));
-    }
-
-    // Regression: Static Web Apps sends /.auth/login/aad through its shared identity host
-    // for the app's region before Microsoft sign-in. Blocking it left a blank white page.
-    @Test public void allowsStaticWebAppsIdentityHostForThePlannersRegion() {
-        assertTrue(allowlist.allows("https://identity.4.azurestaticapps.net/.redirect/aad?hostName=your-app-name.4.azurestaticapps.net&staticWebAppsAuthNonce=abc"));
-        assertTrue(allowlist.allows("https://identity.azurestaticapps.net/.redirect/aad"));
-        assertFalse(allowlist.allows("https://identity.5.azurestaticapps.net/.redirect/aad"));
-        assertFalse(allowlist.allows("https://identity.4.azurestaticapps.net.evil.example/"));
     }
 
     @Test public void blocksOtherSites() {

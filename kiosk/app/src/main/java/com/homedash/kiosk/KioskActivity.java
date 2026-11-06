@@ -1,6 +1,7 @@
 package com.homedash.kiosk;
 
 import android.app.Activity;
+import android.content.Intent;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -70,7 +71,9 @@ public class KioskActivity extends Activity {
     };
 
     private final Allowlist allowlist = new Allowlist(BuildConfig.PLANNER_HOST);
-    private final AutoSignIn autoSignIn = new AutoSignIn(BuildConfig.PLANNER_HOST, 2 * 60_000L);
+    private final PairingLink pairingLink = new PairingLink(BuildConfig.PLANNER_HOST);
+    /** A pairing link from adb, loaded once the browser is up (it may still be waiting for the clock). */
+    private String pendingPairing;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private GeckoView view;
     private GeckoSession session;
@@ -92,6 +95,7 @@ public class KioskActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        acceptPairing(getIntent());
 
         dimPolicy = new DimPolicy(IDLE_DIM_MS, DARK_BELOW_LUX, LIGHT_ABOVE_LUX, SystemClock.elapsedRealtime());
         sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
@@ -201,18 +205,6 @@ public class KioskActivity extends Activity {
             }
 
             @Override
-            public void onLocationChange(GeckoSession s, String url,
-                                         java.util.List<GeckoSession.PermissionDelegate.ContentPermission> perms,
-                                         Boolean hasUserGesture) {
-                // The planner moves to /login inside the page (no new load), so watch here.
-                String signIn = autoSignIn.redirectFor(url, SystemClock.elapsedRealtime());
-                if (signIn != null) {
-                    Log.i(TAG, "On the planner's sign-in page; signing in automatically");
-                    s.loadUri(signIn);
-                }
-            }
-
-            @Override
             public GeckoResult<GeckoSession> onNewSession(GeckoSession s, String uri) {
                 // No pop-ups or new tabs: open allowed links in place, drop the rest.
                 if (allowlist.allows(uri)) s.loadUri(uri);
@@ -235,7 +227,31 @@ public class KioskActivity extends Activity {
 
         session.open(runtime);
         view.setSession(session);
-        session.loadUri(BuildConfig.START_URL);
+        if (pendingPairing != null) {
+            Log.i(TAG, "Opening the pairing link");   // never log the link: it holds the display key
+            session.loadUri(pendingPairing);
+            pendingPairing = null;
+        } else {
+            session.loadUri(BuildConfig.START_URL);
+        }
+    }
+
+    /** A pairing link sent over USB while the kiosk is already running (singleTask). */
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        acceptPairing(intent);
+        if (pendingPairing != null && session != null) {
+            Log.i(TAG, "Opening the pairing link");
+            session.loadUri(pendingPairing);
+            pendingPairing = null;
+        }
+    }
+
+    private void acceptPairing(Intent intent) {
+        if (intent == null || intent.getDataString() == null) return;
+        pendingPairing = pairingLink.validate(intent.getDataString());
+        if (pendingPairing == null) Log.w(TAG, "Ignored a link that isn't the planner's pairing page");
     }
 
     private void scheduleRetry() {
