@@ -2,7 +2,9 @@ plugins {
     id "com.android.application"
 }
 
-def plannerHost = "your-app-name.4.azurestaticapps.net"
+// The planner's host name, kept out of the repo. Set plannerHost in ~/.gradle/gradle.properties,
+// or pass -PplannerHost=..., e.g. plannerHost=your-app-name.4.azurestaticapps.net
+def plannerHost = findProperty("plannerHost") ?: { throw new GradleException("Set plannerHost (see kiosk/app/build.gradle)") }()
 
 android {
     namespace = "com.homedash.kiosk"

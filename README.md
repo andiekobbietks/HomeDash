@@ -108,6 +108,7 @@ Result: the frame boots into the kiosk, AiMOR and the other vendor apps don't ru
 - **Only navigates to the planner host** (`Allowlist.java`, unit-tested): not Microsoft, not the SWA identity host. The frame is paired with a display key (FamilyPlanner S34), so it never signs in. No pop-ups or new tabs, and Back stays inside the kiosk.
 - Accepts a **pairing link over USB** (`PairingLink.java`, unit-tested): only `https://<planner>/display/pair#k=<43-char key>`. The link is never logged by the kiosk. Full screen, screen kept on. Shows its own "Can't reach the planner" page and retries every 30 s, reloads every 6 h, and reopens the session if the engine crashes.
 - Safe Browsing, remote debugging and `about:config` are off.
+- The planner's address isn't in the repo: put `plannerHost=<your app>.azurestaticapps.net` in `~/.gradle/gradle.properties` (or pass `-PplannerHost=...`). The build stops if it's missing.
 - Build: `cd kiosk && JAVA_HOME=/opt/android-studio/jbr ./gradlew lintDebug testDebugUnitTest assembleDebug`. Output goes to `~/.cache/homedash-kiosk-build/` to keep it out of Dropbox. Install with `adb -d install -r ~/.cache/homedash-kiosk-build/app/outputs/apk/debug/app-debug.apk`.
 - Signed with the Android Studio debug key (`~/.android/debug.keystore`). Updates must use the same key, so back it up.
 - **The engine never gets security updates again.** That makes the network allowlist in step 4 more valuable.
