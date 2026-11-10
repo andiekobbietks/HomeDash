@@ -225,6 +225,10 @@ The dashboard is the FamilyPlanner site on Azure Static Web Apps, behind a Micro
 - [x] Step 3: on ISP guest WiFi, nothing listening apart from ADB on localhost
 - [ ] Step 4 (optional): GL.iNet router, allowlist, traffic check
 
+## Contributing
+
+This is built for one household, so I'm not taking issues or pull requests. Security problems are welcome: see `SECURITY.md`.
+
 ## Licence
 
 MIT. See `LICENSE`.
