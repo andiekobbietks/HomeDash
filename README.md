@@ -1,6 +1,16 @@
 # HomeDash
 
-A cheap Android photo frame turned into a wall display for the family dashboard ([FamilyPlanner](../FamilyPlanner)), set up so it can't harm the home network.
+A cheap Android photo frame turned into a wall display for the family dashboard ([FamilyPlanner](https://github.com/timotaysci/familyplanner)), set up so it can't harm the home network.
+
+![The photo frame on the wall, showing the planner's Today view](docs/images/wall-frame-today.jpg)
+
+| Month | Recipe |
+|---|---|
+| ![The frame showing the month view](docs/images/wall-frame-month.jpg) | ![The frame showing a recipe](docs/images/wall-frame-recipe.jpg) |
+
+The family on the screen is made up: the planner's wall page has a demo mode for photos.
+
+Write-up: [Turning a Cheap Photo Frame into a Family Wall Display (Without Trusting It)](https://timothyjohnsonsci.com/writing/2026-11-06-photo-frame-wall-display), and for the planner, [Building a Private Family Planner](https://timothyjohnsonsci.com/writing/2026-11-06-family-planner).
 
 ## The device
 
